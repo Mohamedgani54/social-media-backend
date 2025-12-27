@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chrome OTP Login</title>
+</head>
+<body>
+
+  <h2>Login (Chrome → Email OTP)</h2>
+
+  <!-- Login fields -->
+  <input id="email" placeholder="Email" /><br><br>
+  <input id="password" type="password" placeholder="Password" /><br><br>
+
+  <button onclick="login()">Login</button>
+
+  <hr>
+
+  <!-- OTP section -->
+  <h3>Verify OTP</h3>
+  <input id="otp" placeholder="Enter OTP" /><br><br>
+  <button onclick="verifyOtp()">Verify OTP</button>
+
+  <script>
+    // STEP 1: Login (triggers OTP for Chrome)
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      console.log("Login response:", data);
+
+      alert(data.message || "Login request sent. Check email for OTP.");
+    }
+
+    // STEP 2: Verify OTP (complete login)
+    async function verifyOtp() {
+      const email = document.getElementById("email").value;
+      const otp = document.getElementById("otp").value;
+
+      const res = await fetch("http://localhost:5000/api/auth/verify-login-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, otp })
+      });
+
+      const data = await res.json();
+      console.log("OTP verify response:", data);
+
+      if (data.token) {
+        alert("Login successful! Token stored in console.");
+      } else {
+        alert(data.message || "OTP verification failed");
+      }
+    }
+  </script>
+
+</body>
+</html>
