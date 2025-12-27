@@ -100,9 +100,6 @@ EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
 
-yaml
-Copy code
-
 ---
 
 ## ▶️ How to Run the Project
