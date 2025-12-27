@@ -52,9 +52,6 @@ social-media-backend/
 ├── sendSmsOtp.js
 └── sendInvoiceEmail.js
 
-yaml
-Copy code
-
 ---
 
 ## ✅ Implemented Tasks Overview
