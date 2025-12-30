@@ -118,39 +118,46 @@ router.post("/login", async (req, res) => {
 
 // otp
 router.post("/verify-login-otp", async (req, res) => {
-  const { email, otp } = req.body;
+  try {
+    const { email, otp } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user || !user.otp || user.otp !== otp || user.otpExpiresAt < Date.now()) {
-    return res.status(400).json({ message: "Invalid or expired OTP" });
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    if (!user.otp || !user.otpExpiresAt) {
+      return res.status(400).json({ message: "OTP not requested" });
+    }
+
+    if (String(user.otp) !== String(otp)) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (user.otpExpiresAt < Date.now()) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    user.otp = null;
+    user.otpExpiresAt = null;
+    await user.save();
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: "Login successful via OTP",
+      token,
+      userId: user._id
+    });
+
+  } catch (err) {
+    console.error("OTP Verify Error:", err);
+    res.status(500).json({ message: "Server error" });
   }
-
-  const parser = new UAParser(req.headers["user-agent"]);
-  const ua = parser.getResult();
-
-  user.loginHistory.push({
-    ip: req.ip,
-    browser: ua.browser.name || "Unknown",
-    os: ua.os.name || "Unknown",
-    device: ua.device.type ? "mobile" : "desktop",
-    loginAt: new Date()
-  });
-
-  user.otp = null;
-  user.otpExpiresAt = null;
-  await user.save();
-
-  const token = jwt.sign(
-    { id: user._id },
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
-
-  res.json({
-    message: "Login successful via OTP",
-    token,
-    userId: user._id
-  });
 });
 
 
