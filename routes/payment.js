@@ -6,30 +6,51 @@ const sendInvoiceEmail = require("../src/utils/sendInvoiceEmail");
 
 const router = express.Router();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+// ===============================
+// Razorpay Safe Initialization
+// ===============================
+let razorpay = null;
 
-// ⏰ Time check helper
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+} else {
+  console.warn("⚠ Razorpay not configured. Payment routes disabled.");
+}
+
+// ===============================
+// ⏰ Time check helper (10–11 AM IST)
+// ===============================
 const isPaymentTimeAllowed = () => {
   const now = new Date();
   const istHour = Number(
     now.toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
       hour: "2-digit",
-      hour12: false
+      hour12: false,
     })
   );
   return istHour >= 10 && istHour < 11;
 };
 
+// ===============================
 // 💳 Create order
+// ===============================
 router.post("/create-order", auth, async (req, res) => {
   try {
+    // 🔐 Razorpay guard
+    if (!razorpay) {
+      return res.status(503).json({
+        message: "Payment service is not configured",
+      });
+    }
+
+    // ⏰ Time restriction
     if (!isPaymentTimeAllowed()) {
       return res.status(403).json({
-        message: "Payments allowed only between 10–11 AM IST"
+        message: "Payments allowed only between 10–11 AM IST",
       });
     }
 
@@ -48,7 +69,7 @@ router.post("/create-order", auth, async (req, res) => {
     const order = await razorpay.orders.create({
       amount: amount * 100,
       currency: "INR",
-      receipt: `receipt_${Date.now()}`
+      receipt: `receipt_${Date.now()}`,
     });
 
     // 🔁 Update user subscription
@@ -57,19 +78,19 @@ router.post("/create-order", auth, async (req, res) => {
     user.lastQuestionDate = null;
     await user.save();
 
-    // 📧 SEND INVOICE EMAIL (✅ CORRECT PLACE)
+    // 📧 Send invoice email
     await sendInvoiceEmail({
       to: user.email,
       plan,
       amount,
-      orderId: order.id
+      orderId: order.id,
     });
 
-    // ✅ Final response
+    // ✅ Response
     res.status(200).json({
       orderId: order.id,
       amount,
-      plan
+      plan,
     });
 
   } catch (err) {
